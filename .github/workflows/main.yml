@@ -31,8 +31,7 @@ jobs:
           file src/redis-server
           file src/redis-cli
           file src/redis-benchmark
-          aarch64-linux-gnu-readelf -s src/redis-server | grep GLIBC_ | awk '{print $8}' | sort -u | grep -E '^GLIBC_'
-
+          aarch64-linux-gnu-readelf -s src/redis-server | grep GLIBC_ | awk '{print $8}' | sort -u | grep -E '^GLIBC_' || true
       - name: 上传全套编译产物
         uses: actions/upload-artifact@v4
         with:
