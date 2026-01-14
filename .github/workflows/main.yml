@@ -3,38 +3,34 @@ on: [workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # 核心修改1：降级编译环境到Ubuntu 20.04（GLIBC 2.31，适配你的2.28）
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: 安装交叉编译工具链
         run: |
           sudo apt update && sudo apt install -y \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu \
-            build-essential \
-            make
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu \
+          build-essential \
+          make \
+          binutils-aarch64-linux-gnu
 
-      - name: 清理旧产物 + 强制编译全套工具（适配GLIBC 2.28）
+      - name: 清理旧产物
         run: |
-          # 彻底清理所有旧编译产物
           make distclean
-          # 强制指定交叉编译器，编译全套工具（server/cli/benchmark等）
           CC=aarch64-linux-gnu-gcc \
           CXX=aarch64-linux-gnu-g++ \
-          EXTRA_CFLAGS="-march=armv8-a -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1"  # 核心修改2：限制GLIBC依赖版本
-          EXTRA_LDFLAGS="-L/usr/aarch64-linux-gnu/lib -static-libgcc"  # 核心修改3：静态链接gcc库，降低依赖
-          make -j1 MALLOC=libc all  # 核心修改4：单线程编译（避免依赖冲突，适配低版本环境）
+          EXTRA_CFLAGS="-march=armv8-a -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -Wl,--rpath=/usr/aarch64-linux-gnu/lib" \
+          EXTRA_LDFLAGS="-L/usr/aarch64-linux-gnu/lib -static-libgcc -Wl,--version-script=/dev/null -Wl,--undefined-version" \
+          make -j2 MALLOC=libc all
 
-      - name: 验证所有产物架构
+      - name: 验证产物
         run: |
-          # 列出所有编译产物
           ls -l src/redis-*
-          # 验证每个产物的架构
           file src/redis-server
           file src/redis-cli
           file src/redis-benchmark
-          # 新增：验证GLIBC依赖版本（确认≤2.28）
           aarch64-linux-gnu-readelf -s src/redis-server | grep GLIBC_ | awk '{print $8}' | sort -u | grep -E '^GLIBC_'
 
       - name: 上传全套编译产物
