@@ -6,13 +6,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install cross compiler
-        run: sudo apt update && sudo apt install -y gcc-aarch64-linux-gnu make
-      - name: Build Redis
+
+      - name: 安装交叉编译工具链
         run: |
+          sudo apt update && sudo apt install -y \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            build-essential \
+            make
+
+      - name: 清理旧产物 + 强制交叉编译所有依赖
+        run: |
+          # 彻底清理所有旧编译产物（包括依赖）
           make distclean
-          CC=aarch64-linux-gnu-gcc make -j2 MALLOC=libc
-      - name: Upload artifact
+          # 强制指定交叉编译器，编译所有依赖和主程序
+          # EXTRA_CFLAGS/LDFLAGS 确保依赖也用aarch64编译
+          CC=aarch64-linux-gnu-gcc \
+          CXX=aarch64-linux-gnu-g++ \
+          EXTRA_CFLAGS="-march=armv8-a" \
+          EXTRA_LDFLAGS="-L/usr/aarch64-linux-gnu/lib" \
+          make -j2 MALLOC=libc
+
+      - name: 验证产物架构
+        run: |
+          file src/redis-server  # 会输出 aarch64 相关信息
+
+      - name: 上传编译产物
         uses: actions/upload-artifact@v4
         with:
           name: redis-8.4.0-aarch64
