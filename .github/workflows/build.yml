@@ -1,0 +1,48 @@
+name: Build Redis 8.4.0 (aarch64)
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装交叉编译工具链
+        run: |
+          sudo apt update && sudo apt install -y \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            build-essential \
+            make
+
+      - name: 清理旧产物 + 强制编译全套工具
+        run: |
+          # 彻底清理所有旧编译产物
+          make distclean
+          # 强制指定交叉编译器，编译全套工具（server/cli/benchmark等）
+          CC=aarch64-linux-gnu-gcc \
+          CXX=aarch64-linux-gnu-g++ \
+          EXTRA_CFLAGS="-march=armv8-a" \
+          EXTRA_LDFLAGS="-L/usr/aarch64-linux-gnu/lib" \
+          make -j2 MALLOC=libc all  # 关键：加 all 目标
+
+      - name: 验证所有产物架构
+        run: |
+          # 列出所有编译产物
+          ls -l src/redis-*
+          # 验证每个产物的架构
+          file src/redis-server
+          file src/redis-cli
+          file src/redis-benchmark
+
+      - name: 上传全套编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-8.4.0-aarch64-full
+          path: |
+            src/redis-server
+            src/redis-cli
+            src/redis-benchmark
+            src/redis-sentinel
+            src/redis-check-rdb
+            src/redis-check-aof
