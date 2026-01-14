@@ -6,8 +6,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: 8.4.0
       - name: Install cross compiler
         run: sudo apt update && sudo apt install -y gcc-aarch64-linux-gnu make
       - name: Build Redis
